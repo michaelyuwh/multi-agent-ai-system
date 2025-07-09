@@ -1,0 +1,35 @@
+{
+  "capabilities": {
+    "search": {
+      "google_search": true,
+      "comprehensive_analysis": true,
+      "source_verification": true
+    }
+  },
+  "defaultInputModes": ["text/plain"],
+  "defaultOutputModes": ["application/json", "text/plain"],
+  "description": "A specialized agent for performing Google search queries and providing comprehensive search results with analysis. Capable of web search, result analysis, and source verification.",
+  "name": "google_search_agent",
+  "skills": [
+    {
+      "id": "web_search",
+      "name": "Web Search",
+      "description": "Perform comprehensive Google searches and return formatted results",
+      "tags": ["search", "web", "google", "information", "research"]
+    },
+    {
+      "id": "result_analysis",
+      "name": "Search Result Analysis",
+      "description": "Analyze search results for relevance, quality, and authority",
+      "tags": ["analysis", "evaluation", "quality", "relevance"]
+    },
+    {
+      "id": "information_synthesis",
+      "name": "Information Synthesis",
+      "description": "Synthesize information from multiple search results into coherent summaries",
+      "tags": ["synthesis", "summary", "comprehension", "analysis"]
+    }
+  ],
+  "url": "http://localhost:8001/a2a/google_search_agent",
+  "version": "1.0.0"
+}
