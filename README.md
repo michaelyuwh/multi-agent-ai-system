@@ -58,7 +58,7 @@ A sophisticated multi-agent AI system built with Google ADK featuring Agent-to-A
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/multi-agent-ai-system.git
+   git clone https://github.com/michaelyuwh/multi-agent-ai-system.git
    cd multi-agent-ai-system
    ```
 
@@ -256,8 +256,8 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## 📞 Support
 
-- 📧 Issues: [GitHub Issues](https://github.com/yourusername/multi-agent-ai-system/issues)
-- 💬 Discussions: [GitHub Discussions](https://github.com/yourusername/multi-agent-ai-system/discussions)
+- 📧 Issues: [GitHub Issues](https://github.com/michaelyuwh/multi-agent-ai-system/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/michaelyuwh/multi-agent-ai-system/discussions)
 
 ---
 
