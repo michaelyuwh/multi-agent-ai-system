@@ -150,7 +150,9 @@ Please provide:
 2. Key information from the search results
 3. The most relevant links
 
-Format your response to be helpful and easy to read."""
+Format your response to be helpful and easy to read.
+
+IMPORTANT: At the end, include a section called "SCRAPABLE_URLS:" followed by the URLs that would be good for web scraping to get more detailed information. List each URL on a new line."""
 
             response = await asyncio.to_thread(
                 self.model.completion,
@@ -177,5 +179,10 @@ Format your response to be helpful and easy to read."""
             formatted += f"**{i}. {result['title']}**\\n"
             formatted += f"🔗 {result['link']}\\n"
             formatted += f"📄 {result['snippet']}\\n\\n"
+        
+        # Add scrapable URLs section
+        formatted += "\\n**SCRAPABLE_URLS:**\\n"
+        for result in results[:3]:  # Limit to top 3 URLs
+            formatted += f"{result['link']}\\n"
         
         return formatted

@@ -34,6 +34,7 @@ def print_banner():
     ║                                                                                      ║
     ║  🤖 Base AI Agent: Conversational AI with memory                                    ║
     ║  🔍 Google Search Agent: Web search capabilities                                    ║
+    ║  🌐 Web Scraper Agent: Content extraction and summarization                        ║
     ║                                                                                      ║
     ║  OS: {os_name:<75} ║
     ║  Starting both agents for A2A communication...                                      ║
@@ -79,6 +80,35 @@ def start_a2a_server():
         "run",
         "python",
         "google-search-agent/a2a_server.py",
+    ]
+
+    # On Windows, we need to handle process creation differently
+    if is_windows():
+        return subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
+    else:
+        return subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+        )
+
+
+def start_web_scraper_agent():
+    """Start the Web Scraper Agent A2A server."""
+    print("🌐 Starting Web Scraper Agent A2A Server...")
+
+    cmd = [
+        "uv",
+        "run",
+        "python",
+        "web-scraper-agent/a2a_server.py",
     ]
 
     # On Windows, we need to handle process creation differently
@@ -165,9 +195,16 @@ def main():
     try:
         # Start A2A server first
         a2a_process = start_a2a_server()
-        processes.append(("A2A Server", a2a_process))
+        processes.append(("Google Search Agent", a2a_process))
 
         # Wait a bit for A2A server to start
+        time.sleep(3)
+
+        # Start web scraper agent
+        scraper_process = start_web_scraper_agent()
+        processes.append(("Web Scraper Agent", scraper_process))
+
+        # Wait a bit for web scraper agent to start
         time.sleep(3)
 
         # Start web interface
@@ -182,18 +219,20 @@ def main():
             thread.start()
             threads.append(thread)
 
-        print("\n🎉 Both agents are starting up!")
+        print("\n🎉 All agents are starting up!")
         print("\n📋 Service URLs:")
         print("   🌐 Web Interface: http://localhost:8000")
-        print("   🔍 A2A Server: http://localhost:8001")
+        print("   🔍 Google Search Agent: http://localhost:8001")
+        print("   🌐 Web Scraper Agent: http://localhost:8002")
+        print("   📋 Search Agent JSON: http://localhost:8001/.well-known/agent.json")
+        print("   📋 Scraper Agent JSON: http://localhost:8002/.well-known/agent.json")
         print(
-            "   📋 Agent JSON: http://localhost:8001/a2a/google_search_agent/.well-known/agent.json"
+            "\n💡 Enhanced Search Features:"
         )
-        print(
-            "\n💡 The base agent can now delegate search tasks to the Google Search Agent!"
-        )
-        print("   Try asking: 'Search for information about artificial intelligence'")
-        print("\n⏹️  Press Ctrl+C to stop both services")
+        print("   • Simple search: 'Search Google for Python tutorials'")
+        print("   • Search + scraping: 'Search for latest AI developments and summarize'")
+        print("   • The base agent can delegate to both search and scraping agents!")
+        print("\n⏹️  Press Ctrl+C to stop all services")
 
         # Cross-platform signal handling
         if is_windows():
