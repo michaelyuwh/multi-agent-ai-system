@@ -4,10 +4,11 @@ A sophisticated multi-agent AI system built with Google ADK featuring Agent-to-A
 
 ## 🌟 Features
 
-- **Multi-Agent Architecture**: Base AI agent with Google Search Agent delegation
+- **Multi-Agent Architecture**: Base AI agent with Google Search and Web Scraper Agent delegation
 - **A2A Protocol Communication**: True agent-to-agent communication using A2A standard
 - **Local AI Processing**: Uses Ollama for local conversation handling
 - **Web Search Capabilities**: Google Custom Search integration via dedicated search agent
+- **Intelligent Web Scraping**: Content extraction and AI-powered summarization
 - **Cross-Platform Support**: Works on macOS and Windows
 - **Modern Web Interface**: Beautiful UI for agent interaction
 - **Memory Management**: Persistent conversation memory
@@ -16,14 +17,14 @@ A sophisticated multi-agent AI system built with Google ADK featuring Agent-to-A
 ## 🏗️ System Architecture
 
 ```
-┌─────────────────┐     A2A Protocol     ┌──────────────────────┐
-│   Base AI Agent │ ◄─────────────────► │ Google Search Agent  │
-│   (Ollama)      │                     │   (Gemini + API)     │
-└─────────────────┘                     └──────────────────────┘
-         │                                        │
-         │                                        │
-    Web Interface                           A2A Server
-    (Port 8000)                            (Port 8001)
+┌─────────────────┐     A2A       ┌──────────────────┐     A2A       ┌──────────────────┐
+│   Base AI Agent │ ◄──────────► │ Google Search    │ ◄──────────► │ Web Scraper      │
+│   (Ollama)      │               │ Agent (Port 8001)│               │ Agent (Port 8002)│
+└─────────────────┘               └──────────────────┘               └──────────────────┘
+         │                                                                     │
+         │                                                                     │
+    Web Interface                                                        Content Analysis
+    (Port 8000)                                                            & Summarization
 ```
 
 ### Components
@@ -32,6 +33,7 @@ A sophisticated multi-agent AI system built with Google ADK featuring Agent-to-A
    - Conversational AI using Ollama (llama3.1:8b)
    - Handles general queries, coding help, explanations
    - Delegates search requests via A2A protocol
+   - Enhanced with web scraping capabilities
    - Web interface for user interaction
 
 2. **Google Search Agent**
@@ -39,8 +41,16 @@ A sophisticated multi-agent AI system built with Google ADK featuring Agent-to-A
    - Uses Google Custom Search API
    - Gemini model for result processing
    - Exposes A2A server endpoints
+   - Provides URLs for content scraping
 
-3. **A2A Communication Layer**
+3. **Web Scraper Agent** ✨ NEW
+   - Intelligent web content extraction
+   - Multi-URL scraping capabilities
+   - AI-powered content summarization
+   - Content cleaning and analysis
+   - A2A server on port 8002
+
+4. **A2A Communication Layer**
    - Standards-compliant Agent-to-Agent protocol
    - Secure inter-agent communication
    - Agent discovery via agent cards
@@ -130,14 +140,41 @@ Agent: Hello! I'm doing well, thank you for asking. I'm here to help you with an
 
 ### Web Search (A2A Delegation)
 ```
-User: Search for the latest developments in artificial intelligence
-Agent: 🔍 Search Results for 'latest developments in artificial intelligence':
+User: Search Google for Python tutorials
+Agent: 🔍 Search Results for 'Python tutorials':
 
 Based on current web search results:
-1. **Recent AI Breakthroughs in 2025**
-   - Advanced reasoning capabilities in large language models
-   - Improvements in multimodal AI systems
+1. **Learn Python - Python.org**
+   - Official Python tutorial and documentation
+   - https://docs.python.org/3/tutorial/
    ...
+```
+
+### Enhanced Search with Web Scraping ✨ NEW
+```
+User: Search for latest AI developments and give me a detailed summary
+Agent: 🔍 Search Results for 'latest AI developments':
+
+[Search results with links]
+
+🌐 **Detailed Content Analysis:**
+
+Based on comprehensive analysis of scraped content:
+
+**Overview of Main Topics:**
+- Advanced reasoning capabilities in large language models
+- Breakthrough in multimodal AI systems combining text, image, and video
+- New developments in AI safety and alignment research
+
+**Key Insights:**
+1. **GPT-4 and Beyond**: Recent improvements show significant advances in reasoning...
+2. **Multimodal Integration**: New models can now seamlessly process and generate...
+3. **Safety Research**: Major progress in AI alignment and controllability...
+
+**Sources:**
+1. [Recent AI Breakthroughs in 2025](https://example.com/ai-news)
+2. [Multimodal AI Systems](https://example.com/multimodal)
+3. [AI Safety Progress](https://example.com/safety)
 ```
 
 ## 🛠️ Development
@@ -147,17 +184,21 @@ Based on current web search results:
 ```
 ai-agents/
 ├── base-ai-agent/          # Main conversational agent
-│   ├── agent.py           # Agent definition
+│   ├── agent.py           # Agent with search and scraping tools
 │   └── config.py          # Configuration
 ├── google-search-agent/    # Search specialist agent
 │   ├── a2a_server.py      # A2A server implementation
 │   ├── search_agent_executor.py
 │   └── agent.py
+├── web-scraper-agent/      # Web scraping specialist agent ✨ NEW
+│   ├── a2a_server.py      # A2A server implementation
+│   ├── scraper_agent_executor.py
+│   └── agent.py
 ├── shared/                 # Shared utilities
 │   ├── memory_manager.py
 │   ├── ollama_config.py
 │   └── utils.py
-├── start_agents.py         # Main startup script
+├── start_agents.py         # Main startup script (3 agents)
 ├── pyproject.toml         # Project configuration
 └── README.md              # This file
 ```
@@ -173,6 +214,12 @@ uv run adk web --port 8000 .
 **Google Search Agent only:**
 ```bash
 cd google-search-agent
+uv run python a2a_server.py
+```
+
+**Web Scraper Agent only:**
+```bash
+cd web-scraper-agent
 uv run python a2a_server.py
 ```
 
@@ -199,7 +246,8 @@ uv run python validate_setup.py
 
 2. **A2A communication errors**
    - Verify Google Search Agent is running on port 8001
-   - Check that `.env` has correct `GOOGLE_SEARCH_AGENT_URL`
+   - Verify Web Scraper Agent is running on port 8002
+   - Check that `.env` has correct agent URLs
 
 3. **Ollama connection issues**
    - Ensure Ollama is running: `ollama serve`
@@ -208,6 +256,11 @@ uv run python validate_setup.py
 4. **Google Search API errors**
    - Verify API key and Search Engine ID in `.env`
    - Check API quotas in Google Cloud Console
+
+5. **Web scraping errors**
+   - Check that target URLs are accessible
+   - Verify scraper agent is running on port 8002
+   - Some sites may block scraping attempts
 
 ### Logs and Debugging
 
@@ -238,8 +291,9 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ## 📋 Testing Checklist
 
 - [ ] Basic conversation works without search
-- [ ] Search delegation works via A2A
-- [ ] Both agents start successfully
+- [ ] Simple search delegation works via A2A
+- [ ] Enhanced search with scraping works
+- [ ] All three agents start successfully
 - [ ] Web interface loads properly
 - [ ] Cross-platform compatibility (macOS/Windows)
 
