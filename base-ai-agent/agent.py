@@ -9,26 +9,55 @@ import asyncio
 import os
 import re
 
-# Base instruction with enhanced A2A delegation capability
-BASE_INSTRUCTION = """You are a helpful AI assistant running locally with Ollama.
+# Base instruction with intelligent search capability
+BASE_INSTRUCTION = """You are a helpful AI assistant with access to current web information.
 
-You can:
-1. Answer questions and have conversations using your knowledge - for greetings, general questions, coding help, explanations, etc.
-2. When users explicitly ask for current information, recent news, web searches, or real-time data, use the search_and_scrape function for comprehensive results
-3. Use search_google for simple search results without content scraping
+IMPORTANT: Always respond directly to users in natural, conversational language. Never expose function calls, tool names, or technical details to users.
 
-Important guidelines:
-- For simple greetings like "hello", "hi", "how are you" - respond directly without using any tools
-- For general knowledge questions - use your existing knowledge 
-- For coding questions, explanations, creative tasks - respond directly
-- For current information that needs web content: use search_and_scrape
-- For simple searches: use search_google
-- ONLY use search functions when users specifically ask to "search for", "find current info about", "what's the latest news on", or similar search requests
+Your capabilities:
+1. Answer general questions using your knowledge for topics like coding, explanations, mathematics, etc.
+2. Automatically search the web when you need current information, recent news, or specific data
+3. Provide comprehensive answers by combining your knowledge with current web information
 
-Be friendly, helpful, and informative in your responses."""
+Guidelines:
+- For simple greetings like "hello", "hi", "how are you" - respond directly in a friendly, conversational manner without using any tools
+- For general knowledge questions that don't require current information - use your existing knowledge and respond naturally
+- For questions about current events, recent developments, stock prices, weather, news, or when you're unsure about recent information - use the web_search function but present the results naturally to the user
+- Always provide helpful, informative responses in plain, conversational text
+- Never show function calls, JSON responses, or technical details to users
+- When you search the web, integrate the information smoothly into your response
 
-async def search_google(query: str) -> str:
-    """Search Google using the Google Search Agent via A2A protocol."""
+Response Format Rules:
+- Respond directly to users with natural language
+- Never output function call syntax like {"type":"function","function":{"name":"..."}}
+- Never mention tool names like "web_search" or "base_ai_agent_response" in your responses
+- For greetings, respond immediately with something like "Hello! How can I help you today?\""""
+
+async def web_search(query: str) -> str:
+    """Search the web for current information and scrape relevant content automatically."""
+    try:
+        # Step 1: Perform Google search
+        search_result = await _search_google_internal(query)
+        
+        # Step 2: Extract URLs from search results
+        urls = _extract_urls_from_search_result(search_result)
+        
+        if not urls:
+            return search_result
+        
+        # Step 3: Scrape the URLs using Web Scraper Agent
+        scrape_result = await _scrape_urls_internal(urls)
+        
+        # Step 4: Combine and format results
+        combined_result = f"{search_result}\n\n🌐 **Detailed Content Analysis:**\n\n{scrape_result}"
+        
+        return combined_result
+        
+    except Exception as e:
+        return f"❌ Search failed: {str(e)}. Unable to retrieve current information from the web."
+
+async def _search_google_internal(query: str) -> str:
+    """Internal function to search Google using the Google Search Agent via A2A protocol."""
     try:
         # Get the Google Search Agent URL from environment
         search_agent_base_url = os.getenv('GOOGLE_SEARCH_AGENT_URL', 'http://localhost:8001')
@@ -44,45 +73,87 @@ async def search_google(query: str) -> str:
             # Send search request to the Google Search Agent
             response = await a2a_client.send_message(query)
             
-            return f"🔍 {response}"
+            # Extract content from A2A response - handle different response formats
+            if hasattr(response, 'content') and response.content:
+                return response.content
+            elif hasattr(response, 'text') and response.text:
+                return response.text
+            elif isinstance(response, str):
+                return response
+            elif hasattr(response, 'choices') and response.choices:
+                # Handle OpenAI-style response
+                return response.choices[0].message.content
+            elif hasattr(response, 'messages') and response.messages:
+                # Handle messages list
+                content = ""
+                for msg in response.messages:
+                    if hasattr(msg, 'content'):
+                        content += msg.content
+                    elif hasattr(msg, 'text'):
+                        content += msg.text
+                return content
+            else:
+                # Last resort - convert to string
+                return str(response)
         
     except Exception as e:
-        return f"❌ Search failed: {str(e)}. Make sure the Google Search Agent is running on port 8001 and properly configured as an A2A server."
+        return f"❌ Search failed: {str(e)}. Make sure the Google Search Agent is running on port 8001."
 
-async def search_and_scrape(query: str) -> str:
-    """Search Google and then scrape the top results for comprehensive information."""
+async def _scrape_urls_internal(urls: list) -> str:
+    """Scrape URLs using the Web Scraper Agent via A2A protocol."""
     try:
-        # Step 1: Perform Google search
-        search_result = await search_google(query)
+        # Get the Web Scraper Agent URL from environment
+        scraper_agent_base_url = os.getenv('WEB_SCRAPER_AGENT_URL', 'http://localhost:8002')
         
-        # Step 2: Extract URLs from search results
-        urls = _extract_urls_from_search_result(search_result)
-        
-        if not urls:
-            return search_result + "\\n\\n⚠️ No URLs found for scraping. Search results only."
-        
-        # Step 3: Scrape the URLs using Web Scraper Agent
-        scrape_result = await _scrape_urls(urls)
-        
-        # Step 4: Combine search and scrape results
-        combined_result = f"{search_result}\\n\\n🌐 **Detailed Content Analysis:**\\n\\n{scrape_result}"
-        
-        return combined_result
+        async with httpx.AsyncClient(timeout=60.0) as httpx_client:  # Longer timeout for scraping
+            # Create A2A client from agent card
+            a2a_client = await A2AClient.get_client_from_agent_card_url(
+                httpx_client=httpx_client,
+                base_url=scraper_agent_base_url,
+                agent_card_path='/.well-known/agent.json'
+            )
+            
+            # Send scraping request with URLs
+            urls_text = "Scrape these URLs:\n" + "\n".join(urls)
+            response = await a2a_client.send_message(urls_text)
+            
+            # Extract content from A2A response - handle different response formats
+            if hasattr(response, 'content') and response.content:
+                return response.content
+            elif hasattr(response, 'text') and response.text:
+                return response.text
+            elif isinstance(response, str):
+                return response
+            elif hasattr(response, 'choices') and response.choices:
+                # Handle OpenAI-style response
+                return response.choices[0].message.content
+            elif hasattr(response, 'messages') and response.messages:
+                # Handle messages list
+                content = ""
+                for msg in response.messages:
+                    if hasattr(msg, 'content'):
+                        content += msg.content
+                    elif hasattr(msg, 'text'):
+                        content += msg.text
+                return content
+            else:
+                # Last resort - convert to string
+                return str(response)
         
     except Exception as e:
-        return f"❌ Search and scrape failed: {str(e)}. Make sure both Google Search Agent (port 8001) and Web Scraper Agent (port 8002) are running."
+        return f"❌ Web scraping failed: {str(e)}. Make sure the Web Scraper Agent is running on port 8002."
 
 def _extract_urls_from_search_result(search_result: str) -> list:
     """Extract URLs from search result text."""
     urls = []
     
     # Look for URLs in the search result
-    url_pattern = r'https?://[^\\s<>"{}|\\\\^`\\[\\]]+'
+    url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
     found_urls = re.findall(url_pattern, search_result)
     
     # Also look for SCRAPABLE_URLS section
     if "SCRAPABLE_URLS:" in search_result:
-        lines = search_result.split("SCRAPABLE_URLS:")[1].strip().split('\\n')
+        lines = search_result.split("SCRAPABLE_URLS:")[1].strip().split('\n')
         for line in lines:
             line = line.strip()
             if line and line.startswith('http'):
@@ -108,16 +179,37 @@ async def _scrape_urls(urls: list) -> str:
             )
             
             # Send scraping request with URLs
-            urls_text = "Scrape these URLs:\\n" + "\\n".join(urls)
+            urls_text = "Scrape these URLs:\n" + "\n".join(urls)
             response = await a2a_client.send_message(urls_text)
             
-            return response
+            # Extract content from A2A response - handle different response formats
+            if hasattr(response, 'content') and response.content:
+                return response.content
+            elif hasattr(response, 'text') and response.text:
+                return response.text
+            elif isinstance(response, str):
+                return response
+            elif hasattr(response, 'choices') and response.choices:
+                # Handle OpenAI-style response
+                return response.choices[0].message.content
+            elif hasattr(response, 'messages') and response.messages:
+                # Handle messages list
+                content = ""
+                for msg in response.messages:
+                    if hasattr(msg, 'content'):
+                        content += msg.content
+                    elif hasattr(msg, 'text'):
+                        content += msg.text
+                return content
+            else:
+                # Last resort - convert to string
+                return str(response)
         
     except Exception as e:
         return f"❌ Web scraping failed: {str(e)}. Make sure the Web Scraper Agent is running on port 8002."
 
 def create_base_agent() -> Agent:
-    """Create a base agent with Ollama, search, and scraping capabilities."""
+    """Create a base agent with intelligent web search capabilities."""
     
     # Configure LiteLLM for Ollama
     litellm_model = LiteLlm(
@@ -127,17 +219,16 @@ def create_base_agent() -> Agent:
         max_tokens=2048,
     )
     
-    # Create tools
-    search_tool = FunctionTool(search_google)
-    search_and_scrape_tool = FunctionTool(search_and_scrape)
+    # Create tool for web search
+    web_search_tool = FunctionTool(web_search)
     
-    # Create the main agent with both search and scraping tools
+    # Create the main agent with web search capability
     agent = Agent(
         model=litellm_model,
         name="base_ai_agent",
-        description="A conversational AI assistant with search and web scraping capabilities",
+        description="A conversational AI assistant with intelligent web search capabilities",
         instruction=BASE_INSTRUCTION,
-        tools=[search_tool, search_and_scrape_tool],
+        tools=[web_search_tool],
     )
     
     return agent

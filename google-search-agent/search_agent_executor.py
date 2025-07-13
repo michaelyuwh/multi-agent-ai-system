@@ -31,6 +31,14 @@ class GoogleSearchAgentExecutor(AgentExecutor):
             temperature=0.3,
             max_tokens=1024,
         )
+        
+        # Fallback to Ollama if Gemini fails
+        self.fallback_model = LiteLlm(
+            model="ollama_chat/llama3.1:8b",
+            api_base="http://localhost:11434",
+            temperature=0.3,
+            max_tokens=1024,
+        )
     
     async def execute(
         self,
@@ -140,7 +148,7 @@ class GoogleSearchAgentExecutor(AgentExecutor):
             results_text += f"   {result['snippet']}\\n"
         
         try:
-            # Use Gemini to summarize and format the results
+            # Use AI to summarize and format the results
             prompt = f"""You are a helpful search assistant. Summarize these search results in a clear, informative way:
 
 {results_text}
@@ -154,6 +162,7 @@ Format your response to be helpful and easy to read.
 
 IMPORTANT: At the end, include a section called "SCRAPABLE_URLS:" followed by the URLs that would be good for web scraping to get more detailed information. List each URL on a new line."""
 
+            # Try Gemini first
             response = await asyncio.to_thread(
                 self.model.completion,
                 messages=[{"role": "user", "content": prompt}]
@@ -164,12 +173,27 @@ IMPORTANT: At the end, include a section called "SCRAPABLE_URLS:" followed by th
                 formatted_result = response.choices[0].message.content
                 return f"🔍 **Search Results for '{query}':**\\n\\n{formatted_result}"
             else:
-                # Fallback to simple formatting
-                return self._simple_format_results(query, results)
+                # Try fallback model
+                raise Exception("Gemini response format unexpected")
                 
         except Exception as e:
             logger.error(f"Error formatting results with Gemini: {e}")
-            return self._simple_format_results(query, results)
+            # Try with fallback Ollama model
+            try:
+                logger.info("Trying fallback Ollama model for formatting")
+                response = await asyncio.to_thread(
+                    self.fallback_model.completion,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                
+                if hasattr(response, 'choices') and response.choices:
+                    formatted_result = response.choices[0].message.content
+                    return f"🔍 **Search Results for '{query}':**\\n\\n{formatted_result}"
+                else:
+                    return self._simple_format_results(query, results)
+            except Exception as fallback_error:
+                logger.error(f"Fallback model also failed: {fallback_error}")
+                return self._simple_format_results(query, results)
     
     def _simple_format_results(self, query: str, results: list[dict[str, Any]]) -> str:
         """Simple fallback formatting for search results."""

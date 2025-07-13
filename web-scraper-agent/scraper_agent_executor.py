@@ -22,9 +22,10 @@ class WebScraperAgentExecutor(AgentExecutor):
     
     def __init__(self):
         """Initialize the Web Scraper Agent Executor."""
-        # Initialize Gemini model for content processing
+        # Initialize Ollama model for content processing (more reliable than Gemini)
         self.model = LiteLlm(
-            model="gemini-1.5-flash",
+            model="ollama_chat/llama3.1:8b",
+            api_base="http://localhost:11434",
             temperature=0.3,
             max_tokens=2048,
         )
