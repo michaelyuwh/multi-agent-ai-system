@@ -83,3 +83,5 @@ uv.lock
 *.tmp
 *.temp
 .temp/
+# Note: .env file contains sensitive API keys and should not be committed
+.env
